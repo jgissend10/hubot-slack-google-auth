@@ -44,6 +44,9 @@ module.exports = function(robot) {
   var app = express();
   var auth_sessions = {};
 
+  var google_access_token = null;
+  var google_refresh_token = null;
+
   // use passport for getting access/refresh tokens
   app.configure(function() {
     app.use(passport.initialize());
@@ -103,12 +106,8 @@ module.exports = function(robot) {
     function(req, res) {
       var auth_session = auth_sessions[req.query.state];
       if(!req.query.state || !auth_session) return res.send(401, "NOT OK");
-      get_user(auth_session.user_id, function(err, u) {
-        u.google_access_token = req.user.accessToken;
-        u.google_refresh_token = req.user.refreshToken;
-        var hubot_user = robot.brain.userForName(auth_session.user_id);
-        robot.emit('google-authenticated', hubot_user);
-        if(auth_session.onComplete) auth_session.onComplete(undefined, create_oauth_client( u.google_access_token, u.google_refresh_token ));
+        google_access_token = req.user.accessToken;
+        google_refresh_token = req.user.refreshToken;
         auth_sessions[req.query.state] = undefined;
         res.send('Thanks, you can close this window now.');
       });
@@ -116,36 +115,24 @@ module.exports = function(robot) {
 
   robot.on('google:authenticate', function(msg, next) {
     var u = msg.message ? msg.message.user : msg;
-    get_user("jgissend10", function(err, token_user) {
-      if(!token_user.google_access_token) {
-        if(!msg.message) return next("No token");
-        var sid = uuid.v1();
-        auth_sessions[sid] = { onComplete: next, user_id: u.name };
-        var reply = "Hey, I need you to log in before I can do that: " + process.env.HUBOT_URL + "/google/auth?token=" + sid;
-        robot.emit('slack.attachment', {channel: u.name, text: reply});
-      }
-      else {
-        var client = create_oauth_client( token_user.google_access_token, token_user.google_refresh_token );
-        client.refreshAccessToken(function(err, tokens) {
-          next(err, client);
-        });
-      }
+    var client = create_oauth_client( google_access_token, google_refresh_token );
+    client.refreshAccessToken(function(err, tokens) {
+      next(err, client);
     });
   });
 
+
   robot.respond(/log out of google/i, function(msg) {
-    get_user(msg.message.user.name, function(err, u) {
-      u.google_access_token = null;
-      u.google_refresh_token = null;
-      msg.reply("OK");
-    });
+    google_access_token = null;
+    google_refresh_token = null;
+    msg.reply("OK");
   });
 
   robot.respond(/log into google/i, function(msg) {
     var sid = uuid.v1();
-    auth_sessions[sid] = { onComplete: next, user_id: u.name };
+    auth_sessions[sid] = { user_id: msg.message.user.name };
     var reply = "Please login using this link: " + process.env.HUBOT_URL + "/google/auth?token=" + sid;
-    robot.emit('slack.attachment', {channel: u.name, text: reply});
+    robot.emit('slack.attachment', {channel: msg.message.user.name, text: reply});
   });
 
   robot.router.use(app);

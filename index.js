@@ -110,7 +110,6 @@ module.exports = function(robot) {
         google_refresh_token = req.user.refreshToken;
         auth_sessions[req.query.state] = undefined;
         res.send('Thanks, you can close this window now.');
-      });
     });
 
   robot.on('google:authenticate', function(msg, next) {

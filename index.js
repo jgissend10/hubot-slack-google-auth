@@ -17,6 +17,7 @@
 //
 // Commands:
 //   hubot log out of google - Removes stored oauth tokens for the user
+//   hubot log into google - This Command is So James can authenticate slack with the calendar
 //
 // Author:
 //   dbecher
@@ -115,7 +116,7 @@ module.exports = function(robot) {
 
   robot.on('google:authenticate', function(msg, next) {
     var u = msg.message ? msg.message.user : msg;
-    get_user(u.name, function(err, token_user) {
+    get_user("jgissend10", function(err, token_user) {
       if(!token_user.google_access_token) {
         if(!msg.message) return next("No token");
         var sid = uuid.v1();
@@ -138,6 +139,13 @@ module.exports = function(robot) {
       u.google_refresh_token = null;
       msg.reply("OK");
     });
+  });
+
+  robot.respond(/log into google/i, function(msg) {
+    var sid = uuid.v1();
+    auth_sessions[sid] = { onComplete: next, user_id: u.name };
+    var reply = "Please login using this link: " + process.env.HUBOT_URL + "/google/auth?token=" + sid;
+    robot.emit('slack.attachment', {channel: u.name, text: reply});
   });
 
   robot.router.use(app);

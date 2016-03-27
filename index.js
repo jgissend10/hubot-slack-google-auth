@@ -116,8 +116,8 @@ module.exports = function(robot) {
     var u = msg.message ? msg.message.user : msg;
     var client = create_oauth_client( google_access_token, google_refresh_token );
     client.refreshAccessToken(function(err, tokens) {
-      google_access_token = tokens.credentials.access_token;
-      google_refresh_token = tokens.credentials.refresh_token;
+      google_access_token = tokens.access_token;
+      google_refresh_token = tokens.refresh_token;
       next(err, client);
     });
   });
